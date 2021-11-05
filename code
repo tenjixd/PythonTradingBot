@@ -1,0 +1,92 @@
+
+class CalmRedCaterpillar(QCAlgorithm):
+
+    def Initialize(self):
+        self.SetStartDate(2021, 1, 1)  #set start date
+        self.SetEndDate(2021, 11, 4)   #set end date
+        self.SetCash(10000)            #set stratedy cash
+        # for backtesting
+        
+        self.entryTicket = None
+        #Creating object for the buy order
+       
+        
+        self.spy = self.AddEquity("spy", Resolution.Hour).Symbol  #data for equity
+        
+        self.ninesma = self.SMA(self.spy, 9, Resolution.Hour)   
+        self.sma = self.SMA(self.spy, 200, Resolution.Hour)
+         #adding indictator data
+      
+    
+        
+        closing_prices = self.History(self.spy, 9, Resolution.Hour)["close"]
+        for time, price in closing_prices.loc[self.spy].items():
+            self.ninesma.Update(time, price)
+        
+        closing_prices = self.History(self.spy, 200, Resolution.Hour)["close"]
+        for time, price in closing_prices.loc[self.spy].items():
+            self.sma.Update(time, price)
+     
+        #Keeps indictators up to date at the start of the program
+        
+
+        
+
+       
+        
+        self.Plot("Benchmark", "SMA",self.sma.Current.Value)
+        self.Plot("Benchmark", "9SMA",self.ninesma.Current.Value)
+        
+        #pllot for backtesting
+    
+
+    def OnData(self, data):
+        # if not self.ninesma.IsReady or self.sma.Isready:
+        #     return
+        #Checks if indicators are up and running 
+        
+        
+        hist = self.History(self.spy, timedelta(24), Resolution.Hour)
+        low = min(hist["low"])
+        high = max(hist["high"])
+        
+        #adding high and low points of spy in the past x bars every resolution period
+        
+
+        
+    
+        
+        price = self.Securities[self.spy].Price
+        
+        #creating price variable
+      
+            
+     
+        if not self.Portfolio.Invested and not self.Transactions.GetOpenOrders(self.spy):
+            if  self.ninesma.Current.Value > self.sma.Current.Value and price *1.05 >= high:
+                quantity = self.CalculateOrderQuantity(self.spy, 0.9)
+                self.entryTicket = self.MarketOrder(self.spy, quantity)
+                
+        
+        # if there there are no existed orders and not invested send market order for 90% of holdings at 1.05 * the most recent high
+        
+        if self.Portfolio.Invested == True and self.Portfolio[self.spy].IsLong:
+            if price <= self.entryTicket.AverageFillPrice *0.95:
+                self.Liquidate()
+            
+        # liquidates holdings if price reaches 0.95 *  average fill price
+            if price >= self.entryTicket.AverageFillPrice *1.1:
+                self.Liquidate()
+           
+            
+        # liquidates holdings if price reaches 1.1 *  average fill price
+        
+         
+         
+        
+        
+    
+    
+    def OnOrderEvent(self, orderEvent):
+        if orderEvent.Status != OrderStatus.Filled:
+            return
